@@ -1,0 +1,214 @@
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ghibli App</title>
+    <link href="https://fonts.googleapis.com/css?family=Dosis:400,700" rel="stylesheet" />
+    <link href="style.css" rel="stylesheet" />
+    <link rel="stylesheet" type="text/css"
+        href="https://api.tomtom.com/maps-sdk-for-web/cdn/6.x/6.21.3/maps/maps.css" />
+    <script src="https://api.tomtom.com/maps-sdk-for-web/cdn/6.x/6.21.3/maps/maps-web.min.js"></script>
+    <script src="https://api.tomtom.com/maps-sdk-for-web/cdn/6.x/6.21.3/services/services-web.min.js"></script>
+    <style>
+        .marker {
+            width: 50px;
+            height: 50px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <form>
+        <select name="place">
+            <option value="p">Select Place</option>
+            <option value="g">grocery stores</option>
+            <option value="m">medical stores</option>
+            <option value="ma">malls</option>
+            <option value="ga">gardens</option>
+            <option value="s">schools</option>
+        </select>
+    </form>
+
+    <input type="text" id="myText" />
+    <button onclick="searchCity()">Click me</button>
+    <button onclick="clearMarkers()">Clear Marker</button>
+    <button onclick="createRoute()">Create Route</button>
+
+    <div id="result"></div>
+    <div id="root"></div>
+    <div style="width: 90vw; height: 90vh;" id="map">hello tomtom</div>
+    <script src="scripts.js"></script>
+
+    <script>
+        var fenceLayer;
+        var APIKEY = "vHY8HBoyFKPfbwRlKjgz4iC52FcHsdfk";
+        var ADMINKEY = 'kyqaFxUgpmRyNwfFAfrKTUBh01TeaN9in99ZS1rQb6xpjVLk'
+        var OBJECTKEY = 'f1bc36b6-ea31-40cb-b0cc-4e85631d913'
+        var FENCE = '752e6601-2c45-4141-9108-490e32c4876a'
+        var PROJECTED = '1967eb89-10b4-4bd5-bb49-aba3c2b64b87'
+        var FROM = '2020-10-20T00:00:00'
+
+        var ROSWELL = {
+            lat: 33.40933794052415,
+            lng: -104.52266928414073
+        }
+
+        var VANCOUVER = {
+            lat: 49.26228555,
+            lng: -123.115498
+        }
+
+        var map = tt.map({
+            key: APIKEY,
+            container: "map",
+            center: VANCOUVER,
+            zoom: 13
+        });
+
+        var startTrace = function () {
+            setInterval(function () {
+
+            }, 2000);
+        };
+
+        map.on('load', function () {
+            fetchLocations(OBJECTKEY, ADMINKEY, APIKEY, FROM);
+        })
+
+        var trafficIncidentsConfig = {
+            incidentTiles: {
+                style: 'tomtom://vector/1/s3'
+            },
+            incidentDetails: {
+                style: ' s2'
+            }
+        }
+
+        var trafficFlowConfig = {
+            theme: {
+                style: 'relative-delay',
+                source: 'vector'
+            },
+            refresh: 30000
+        };
+
+        var getCoordinates = function (data) {
+            array = [];
+            for (element of data.positions.features) {
+                coords = [
+                    element.geometry.coordinates[0],
+                    element.geometry.coordinates[1]
+                ]
+                array.push(coords);
+                createMarker(coords);
+            }
+            console.log(array);
+            return array;
+        }
+
+
+        var createMarker = function (position) {
+            var markerElement = document.createElement('div');
+            markerElement.className = 'marker';
+            markerElement.style.backgroundImage = 'url(ghost.png)';
+            marker = new tt.Marker({ element: markerElement, anchor: 'bottom' })
+                .setLngLat(position)
+                .addTo(map)
+                .setPopup(new tt.Popup().setText('hello'));
+            return marker;
+        }
+
+
+        map.on("click", function (event) {
+            console.log(event);
+            var marker = new tt.Marker().setLngLat(event.lngLat).addTo(map);
+            markers.push(marker);
+        });
+
+        var markers = [];
+
+        var clearMarkers = function () {
+            for (marker of markers) {
+                marker.remove();
+            }
+            markers = [];
+        };
+
+        var moveMap = function (lnglat) {
+            map.flyTo({
+                center: lnglat,
+                zoom: 14
+            })
+        };
+
+        var handleSearchResults = function (result) {
+            console.log(result);
+            if (result.results) {
+                moveMapTo(result.results[0].position);
+                document.getElementById("result").innerHTML =
+                    result.results[0].poi.name;
+                var marker = new tt.Marker()
+                    .setLngLat(result.results[0].position)
+                    .addTo(map);
+            }
+        };
+
+        var searchCity = function () {
+            var API_KEY = "vHY8HBoyFKPfbwRlKjgz4iC52FcHsdfk";
+            tt.services
+                .fuzzySearch({
+                    fetchReply: true,
+                    key: API_KEY,
+                    query: document.getElementById("myText").value,
+                    idxSet: "Poi",
+                    boundingBox: map.getBounds()
+                })
+                .go()
+                .then(handleSearchResults);
+        };
+
+        var displayRoute = function (geoJSON) {
+            routeLayer = map.addLayer({
+                'id': "route",
+                'type': "line",
+                'source': {
+                    'type': "geojson",
+                    'data': geoJSON
+                },
+                paint: {
+                    "line-color": "purple",
+                    "line-width": 5
+                }
+            });
+        };
+
+        var request = new XMLHttpRequest()
+        request.open('GET', 'https://ghibliapi.herokuapp.com/films', true)
+
+        request.onload = function () {
+        }
+        request.send()
+
+        var createRoute = function () {
+            var routeOptions = {
+                key: "vHY8HBoyFKPfbwRlKjgz4iC52FcHsdfk",
+                locations: [],
+                travelMode: "pedestrian"
+            };
+
+            for (marker of markers) {
+                routeOptions.locations.push(marker.getLngLat());
+            }
+
+            tt.services.calculateRoute(routeOptions).go().then(function (routeData) {
+                console.log(routeData);
+                var geo = routeData.toGeoJson();
+                displayRoute(geo);
+            });
+        };
+    </script>
+</body>
+
+</html>
